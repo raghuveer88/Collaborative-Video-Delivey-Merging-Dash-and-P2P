@@ -1,0 +1,21 @@
+{
+  "name": "dash-p2p-demo",
+  "version": "1.0.0",
+  "description": "DASH P2P hybrid demo",
+  "main": "origin-server.js",
+  "scripts": {
+    "origin": "node origin-server.js",
+    "tracker": "node tracker.js",
+    "peer": "node peer.js"
+  },
+  "dependencies": {
+    "axios": "^0.21.4",
+    "body-parser": "^1.20.3",
+    "express": "^4.21.2",
+    "minimist": "^1.2.8",
+    "uuid": "^8.3.2"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

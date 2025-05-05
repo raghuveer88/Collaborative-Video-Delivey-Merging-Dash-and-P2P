@@ -1,0 +1,6 @@
+{
+  "startupDelay": 0.067,
+  "rebufferCount": 1,
+  "averageBitrate": 5000000,
+  "originBandwidth": 0
+}

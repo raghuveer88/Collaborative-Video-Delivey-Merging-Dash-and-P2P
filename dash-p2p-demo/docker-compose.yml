@@ -1,0 +1,40 @@
+version: "3.9"
+
+x-common: &common
+  build: .
+  restart: unless-stopped
+  working_dir: /home/app/app
+  volumes:
+    - .:/home/app/app            # hot‑reload for dev; remove for prod
+  networks: [p2pnet]
+
+services:
+  origin:
+    <<: *common
+    command: ["npm", "run", "origin"]
+    ports: ["9000:9000"]
+
+  tracker:
+    <<: *common
+    command: ["npm", "run", "tracker"]
+    ports: ["7000:7000"]
+
+  # prototype one peer; we’ll scale it later
+  peer:
+    <<: *common
+    cap_add: [NET_ADMIN]   
+    command: ["npm", "run", "peer"]
+    environment:
+      - PORT=8001
+      - ORIGIN=http://origin:9000/dash
+      - TRACKER=http://tracker:7000
+    depends_on: [origin, tracker]
+    ports: ["0:8001"]
+    # Optional bandwidth/latency emulation per peer
+    # cap_add: [NET_ADMIN]
+    # command: /bin/sh -c "tc qdisc add dev eth0 root tbf rate 4mbit burst 32kbit latency 100ms \
+    #       && npm run peer -- --port 8001"
+
+networks:
+  p2pnet:
+    driver: bridge

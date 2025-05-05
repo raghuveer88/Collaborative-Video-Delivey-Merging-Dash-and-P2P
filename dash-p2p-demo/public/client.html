@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>P2P + DASH Demo</title>
+</head>
+<body>
+  <video id="video" controls autoplay muted playsinline width="640"></video>
+  <!-- Pin to dash.js v3 for getQualityFor API support -->
+  <script src="https://cdn.dashjs.org/v3.2.2/dash.all.min.js"></script>
+  <script>
+    const url    = '/dash/dash.mpd';
+    const video  = document.getElementById('video');
+    const player = dashjs.MediaPlayer().create();
+
+    console.log('[Client] init dash.js with', url);
+
+    // ── METRICS STORAGE ───────────────────────────────────────────
+    const metrics = {
+      startTime: Date.now(),
+      startupDelay: null,
+      bitrateLog: [],      // store each switched-to bitrate (bits/sec)
+      rebufferCount: 0
+    };
+
+    // ── VIDEO EVENT HOOKS ─────────────────────────────────────────
+    video.addEventListener('waiting', () => {
+      metrics.rebufferCount++;
+      console.log('[Metrics] rebuffer #' + metrics.rebufferCount);
+    });
+
+    player.on(dashjs.MediaPlayer.events.PLAYBACK_STARTED, () => {
+      if (metrics.startupDelay === null) {
+        metrics.startupDelay = (Date.now() - metrics.startTime) / 1000;
+        console.log('[Metrics] startupDelay = ' + metrics.startupDelay.toFixed(3) + ' s');
+      }
+    });
+
+    player.on(dashjs.MediaPlayer.events.QUALITY_CHANGE_RENDERED, () => {
+      const idx     = player.getQualityFor('video');
+      const list    = player.getBitrateInfoListFor('video');
+      const bitrate = list[idx].bitrate;
+      metrics.bitrateLog.push(bitrate);
+      console.log('[Metrics] switched bitrate → ' + (bitrate/1000).toFixed(0) + ' kbps');
+    });
+
+    video.addEventListener('ended', () => {
+      const sum = metrics.bitrateLog.reduce((a, b) => a + b, 0);
+      const avgBitrate = metrics.bitrateLog.length
+        ? sum / metrics.bitrateLog.length
+        : player.getBitrateInfoListFor('video')[player.getQualityFor('video')].bitrate;
+
+         // send metrics back to our peer.js
+       fetch('/metrics', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({
+         startupDelay:    metrics.startupDelay,
+         rebufferCount:   metrics.rebufferCount,
+         averageBitrate:  avgBitrate
+       })
+     }).catch(console.warn);
+
+      console.log('────── PLAYBACK METRICS ──────');
+      console.log('Startup Delay   : ' + metrics.startupDelay.toFixed(3) + ' s');
+      console.log('Rebuffer Count  : ' + metrics.rebufferCount);
+      console.log('Average Bitrate : ' + (avgBitrate/1000).toFixed(0) + ' kbps');
+      console.log('───────────────────────────────');
+    });
+
+    // ── DASH.JS INIT ──────────────────────────────────────────────
+    player.initialize(video, url, true);
+  </script>
+</body>
+</html>
